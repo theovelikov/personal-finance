@@ -1,4 +1,18 @@
-.App {
-    display: flex;
-    justify-content: center;
+.app {
+  background-color: lightcoral;
 }
+
+.header {
+  justify-content: center;
+  background-color: blue;
+  margin: 3em;
+  display: flex;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  background-color: lightblue;
+  padding: .5em;
+}
+  

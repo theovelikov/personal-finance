@@ -9,6 +9,7 @@ import {
 function App() {
   const [linkToken, setLinkToken] = useState('');
   const [data, setData] = useState(null);
+  const [transactions, setTransactions] = useState(null);
 
   const createLinkToken = useCallback(async () => {
     const response = await fetch("/api/create_link_token", {});
@@ -29,6 +30,13 @@ function App() {
     console.log(data)
     setData(data.balance);
   }, [setData])
+
+  const getTransactions = useCallback(async () => {
+    const response = await fetch("/api/transactions", {});
+    const data = await response.json();
+    console.log(data)
+    setTransactions(data.transactions);
+  }, [setTransactions])
 
   const exchangePublicToken = useCallback(async (public_token: string) => {
     const response = await fetch("/api/exchange_public_token", {
@@ -56,22 +64,38 @@ function App() {
   })
 
   return (
-    <div className="App">
-      <button onClick={() => open()}>
-        Link Account
-      </button>
+    <div className="app">
+      <div >
+        <div className='header'>
+          <button onClick={() => open()}>
+            Link Account
+          </button>
 
-      <button onClick={() => getBalance()} >
-        Get Data
-      </button>
+          <button onClick={() => getBalance()} >
+            Get Data
+          </button>
 
-      { data != null &&
-        Object.entries(data).map((entry, i) => (
-          <pre key={i}>
-            <code>{JSON.stringify(entry[1], null, 2)}</code>
-          </pre>
-        )
-      )}
+          <button onClick={() => getTransactions()} >
+            Get Transactions
+          </button>
+        </div>
+        <div className="container">
+        { data != null &&
+          Object.entries(data).map((entry, i) => (
+            <div key={i}>
+              <code>{JSON.stringify(entry[1], null, 2)}</code>
+            </div>
+          )
+        )}
+        { transactions != null &&
+          Object.entries(transactions).map((transaction, i) => (
+            <div key={i}>
+              <code>{JSON.stringify(transaction)}</code>
+            </div>
+          )
+        )}
+        </div>
+      </div>
     </div>
   );
 }

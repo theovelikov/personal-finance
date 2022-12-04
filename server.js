@@ -38,7 +38,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 
-// Configuration for the Plaid client
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV],
   baseOptions: {
@@ -50,22 +49,19 @@ const config = new Configuration({
   },
 });
 
-//Instantiate the Plaid client with the configuration
 const client = new PlaidApi(config);
 
-//Creates a Link token and return it
 app.get("/api/create_link_token", async (req, res, next) => {
   const tokenResponse = await client.linkTokenCreate({
     user: { client_user_id: req.sessionID },
     client_name: "Theo Test Finance",
     language: "en",
-    products: ["auth"],
+    products: ["auth", 'transactions'],
     country_codes: ["US"],
   });
   res.json(tokenResponse.data);
 });
 
-// Exchanges the public token from Plaid Link for an access token
 app.post("/api/exchange_public_token", async (req, res, next) => {
   const exchangeResponse = await client.itemPublicTokenExchange({
     public_token: req.body.public_token,
@@ -74,12 +70,12 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
   await banksDb.doc().set({
     bank_name: 'chase',
     access_token: exchangeResponse.data.access_token,
+    item_id: exchangeResponse.data.item_id,
   });
 
   res.json(true);
 });
 
-// Fetches balance data using the Node client library for Plaid
 app.get("/api/balance", async (req, res, next) => {
   const banks = await banksDb.get();
   const access_token = banks.docs[0].data().access_token;
@@ -87,6 +83,39 @@ app.get("/api/balance", async (req, res, next) => {
   res.json({
     balance: balanceResponse.data,
   });
+});
+
+app.get("/api/transactions", async (req, res, next)  => {
+  const banks = await banksDb.get();
+  const accessToken = banks.docs[0].data().access_token;
+  try {
+    const response = await client.transactionsGet({
+      access_token: accessToken,
+      start_date: '2018-01-01',
+      end_date: '2022-10-01'
+    });
+    let transactions = response.data.transactions;
+    const total_transactions = response.data.total_transactions;
+    while (transactions.length < total_transactions) {
+      const paginatedResponse = await client.transactionsGet({
+        access_token: accessToken,
+        start_date: '2018-01-01',
+        end_date: '2022-10-01',
+        options: {
+          offset: transactions.length,
+        },
+      });
+      transactions = transactions.concat(
+        paginatedResponse.data.transactions,
+      );
+    }
+    res.json({
+      transactions: transactions,
+    });
+  } catch(err) {
+    console.log(err)
+    res.json(err);
+  }
 });
 
 app.listen(8080);
