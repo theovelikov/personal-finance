@@ -5,11 +5,14 @@ import {
   PlaidLinkOptions,
   PlaidLinkOnSuccess,
 } from 'react-plaid-link';
+import { get } from './request.js';
 
 function App() {
   const [linkToken, setLinkToken] = useState('');
   const [data, setData] = useState(null);
-  const [transactions, setTransactions] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   const createLinkToken = useCallback(async () => {
     const response = await fetch("/api/create_link_token", {});
@@ -17,39 +20,43 @@ function App() {
     setLinkToken(data.link_token);
   }, [setLinkToken])
 
-  // const getAccessToken = useCallback(async () => {
-  //   const response = await fetch("/api/get_access_token", {});
-  //   const data = await response.json();
-  //   console.log(data)
-  //   setAccessToken(data);
-  // }, [setAccessToken])
-
-  const getBalance = useCallback(async () => {
-    const response = await fetch("/api/balance", {});
+  const getBalance = useCallback(async (accountName: string) => {
+    setLoading(true);
+    const response = await fetch(`/api/balance?accountName=${accountName}`, {});
     const data = await response.json();
-    console.log(data)
     setData(data.balance);
+    setLoading(false);
   }, [setData])
 
-  const getTransactions = useCallback(async () => {
-    const response = await fetch("/api/transactions", {});
+  const getTransactions = useCallback(async (accountName: string) => {
+    setLoading(true);
+    const response = await fetch(`/api/transactions?accountName=${accountName}`, {});
     const data = await response.json();
     console.log(data)
     setTransactions(data.transactions);
+    setLoading(false);
   }, [setTransactions])
 
-  const exchangePublicToken = useCallback(async (public_token: string) => {
-    const response = await fetch("/api/exchange_public_token", {
+  const getBankAccounts = useCallback(async () => {
+    setLoading(true);
+    const response = await fetch("/api/bank_accounts", {});
+    const data = await response.json();
+    setBankAccounts(data);
+    setLoading(false);
+  }, [setBankAccounts]);
+
+  const exchangePublicToken = useCallback(async (public_token: string, metadata: any) => {
+    await fetch("/api/exchange_public_token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ public_token: public_token }),
+      body: JSON.stringify({ public_token: public_token, metadata: metadata }),
     });
   }, [])
 
   const config: PlaidLinkOptions = {
-    onSuccess: (public_token, metadata) => { exchangePublicToken(public_token) },
+    onSuccess: (public_token, metadata) => { exchangePublicToken(public_token, metadata) },
     onExit: (err, metadata) => {},
     onEvent: (eventName, metadata) => {},
     token: linkToken,
@@ -71,14 +78,26 @@ function App() {
             Link Account
           </button>
 
-          <button onClick={() => getBalance()} >
-            Get Data
-          </button>
-
-          <button onClick={() => getTransactions()} >
-            Get Transactions
+          <button onClick={() => getBankAccounts()}>
+            Get Bank Accounts
           </button>
         </div>
+        <div className='bank-accounts'>
+          { bankAccounts.length > 0 && bankAccounts.map((account: any) => {
+            return (
+              <div>
+                <button onClick={() => getBalance(account.name)} disabled={loading}>
+                  Get {account.name} Balance
+                </button>
+
+                <button onClick={() => getTransactions(account.name)} disabled={loading}>
+                  Get {account.name} Transactions
+                </button>
+              </div>
+            )
+          })}  
+        </div>
+
         <div className="container">
         { data != null &&
           Object.entries(data).map((entry, i) => (

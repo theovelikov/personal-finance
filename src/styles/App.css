@@ -15,4 +15,9 @@
   background-color: lightblue;
   padding: .5em;
 }
+
+.bank-accounts {
+  justify-content: center;
+  display: flex;
+}
   
