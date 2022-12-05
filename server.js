@@ -8,13 +8,18 @@ const express = require("express");
 const session = require("express-session");
 const { Configuration, PlaidApi, PlaidEnvironments } = require("plaid");
 const app = express();
+const dbo = require('./db/conn');
+dbo.connectToServer((err) => {
+  if (err) {
+    console.error(err);
+    process.exit();
+  }
 
-const username = encodeURIComponent(process.env.MONGO_USERNAME);
-const password = encodeURIComponent(process.env.MONGO_PASSWORD);
-const { MongoClient } = require('mongodb');
-const uri = `mongodb+srv://${username}:${password}@cluster0.0ogzbz4.mongodb.net/?retryWrites=true&w=majority`;
-const dbClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-
+  // start the Express server
+  app.listen(8080, () => {
+    console.log(`Server is running on port: ${8080}`);
+  });
+});
 
 app.use(
   session({ secret: "test secret", saveUninitialized: true, resave: true })
@@ -52,8 +57,8 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
   const exchangeResponse = await client.itemPublicTokenExchange({
     public_token: req.body.public_token,
   });
-  const pfDb = await dbClient.connect()
-  const banks = pfDb.db("personal-finance").collection("banks");
+  const pfDb = await dbo.getDb()
+  const banks = pfDb.collection("banks");
   await banks.insertOne({
     name: req.body.metadata.institution.name,
     access_token: exchangeResponse.data.access_token,
@@ -64,8 +69,8 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
 });
 
 app.get("/api/db/bank_accounts", async (req, res, next) => {
-  const pfDb = await dbClient.connect()
-  const banks = pfDb.db("personal-finance").collection("banks").find();
+  const pfDb = await dbo.getDb()
+  const banks = pfDb.collection("banks").find();
   const bankAccounts = [];
   await banks.forEach((bank) => {
     bankAccounts.push(bank);
@@ -74,8 +79,8 @@ app.get("/api/db/bank_accounts", async (req, res, next) => {
 });
 
 app.get("/api/db/transactions", async (req, res, next) => {
-  const pfDb = await dbClient.connect()
-  const txns = pfDb.db("personal-finance").collection('txns').find();
+  const pfDb = await dbo.getDb()
+  const txns = pfDb.collection('txns').find();
   const transactions = [];
   await txns.forEach((txn) => {
     transactions.push(txn);
@@ -84,8 +89,8 @@ app.get("/api/db/transactions", async (req, res, next) => {
 });
 
 app.get("/api/balance", async (req, res, next) => {
-  const pfDb = await dbClient.connect()
-  const banks = pfDb.db("personal-finance").collection("banks");
+  const pfDb = await dbo.getDb()
+  const banks = pfDb.collection("banks");
   const bankAccount = await banks.findOne({ name: req.query.accountName })
   const access_token = bankAccount.access_token;
 
@@ -110,8 +115,8 @@ app.get("/api/balance", async (req, res, next) => {
 });
 
 app.get("/api/transactions", async (req, res, next)  => {
-  const pfDb = await dbClient.connect()
-  const banks = pfDb.db("personal-finance").collection("banks");
+  const pfDb = await dbo.getDb()
+  const banks = pfDb.collection("banks");
   const bankName = req.query.accountName;
   const bankAccount = await banks.findOne({ name: bankName })
   const access_token = bankAccount.access_token;
@@ -138,7 +143,7 @@ app.get("/api/transactions", async (req, res, next)  => {
         paginatedResponse.data.transactions,
       );
     }
-    const txns = pfDb.db("personal-finance").collection('txns');
+    const txns = pfDb.collection('txns');
     transactions = transactions.map((transaction) => { 
       return {
         account_id: transaction.account_id,
@@ -160,4 +165,4 @@ app.get("/api/transactions", async (req, res, next)  => {
   }
 });
 
-app.listen(8080);
+
