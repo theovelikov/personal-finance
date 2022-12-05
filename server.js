@@ -66,9 +66,21 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
   res.json(true);
 });
 
-app.get("/api/bank_accounts", async (req, res, next) => {
+app.get("/api/db/bank_accounts", async (req, res, next) => {
   const banks = await banksDb.get();
   const bankAccounts = [];
+  banks.forEach((bank) => {
+    let data = bank.data();
+    data.name = bank.id;
+    bankAccounts.push(data);
+  });
+  res.json(bankAccounts);
+});
+
+app.get("/api/db/transactions", async (req, res, next) => {
+  const accounts = await banksDb.doc(req.query.accountName).collection('accounts').get();
+  console.log(accounts);
+  const transaction = [];
   banks.forEach((bank) => {
     let data = bank.data();
     data.name = bank.id;
@@ -121,14 +133,11 @@ app.get("/api/transactions", async (req, res, next)  => {
           offset: transactions.length,
         },
       });
-      transactions = transactions.concat(
-        paginatedResponse.data.transactions,
-      );
+      transactions = transactions.concat(paginatedResponse.data.transactions);
     }
     const accounts = banksDb.doc(bankName).collection('accounts');
     transactions.forEach(transaction => {
-      accounts.doc(transaction.account_id).collection('txns')
-      .doc().set({
+      accounts.doc(transaction.account_id).collection('txns').doc().set({
         date: transaction.date,
         amount: transaction.amount,
         name: transaction.merchant_name || transaction.name,
@@ -136,9 +145,7 @@ app.get("/api/transactions", async (req, res, next)  => {
         payment_channel: transaction.payment_channel,
       });
     });
-    await banksDb.doc(bankName).set({
-      txns_up_to_date: endDate
-    }, { merge: true });
+    await banksDb.doc(bankName).set({ txns_up_to_date: endDate }, { merge: true });
     res.json({transactions});
   } catch(err) {
     console.log(err)

@@ -5,13 +5,15 @@ import {
   PlaidLinkOptions,
   PlaidLinkOnSuccess,
 } from 'react-plaid-link';
-import { get } from './request.js';
+
+import Chart from 'chart.js/auto';
 
 function App() {
   const [linkToken, setLinkToken] = useState('');
   const [data, setData] = useState(null);
-  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [txns, setTxns] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
 
   const createLinkToken = useCallback(async () => {
@@ -39,11 +41,15 @@ function App() {
 
   const getBankAccounts = useCallback(async () => {
     setLoading(true);
-    const response = await fetch("/api/bank_accounts", {});
+    const response = await fetch("/api/db/bank_accounts", {});
     const data = await response.json();
     setBankAccounts(data);
     setLoading(false);
   }, [setBankAccounts]);
+
+  const getDataBaseTransactions = useCallback(async (accountName: string) => {
+
+  }, [setTxns]);
 
   const exchangePublicToken = useCallback(async (public_token: string, metadata: any) => {
     await fetch("/api/exchange_public_token", {
@@ -68,17 +74,19 @@ function App() {
     if(linkToken === ''){
       createLinkToken()
     }
-  })
+    getBankAccounts();
+    console.log('execute');
+  }, [setBankAccounts, setLinkToken])
 
   return (
     <div className="app">
       <div >
         <div className='header'>
-          <button onClick={() => open()}>
+          <button onClick={() => open()} disabled={loading}>
             Link Account
           </button>
 
-          <button onClick={() => getBankAccounts()}>
+          <button onClick={() => getBankAccounts()} disabled={loading}>
             Get Bank Accounts
           </button>
         </div>
@@ -92,6 +100,10 @@ function App() {
 
                 <button onClick={() => getTransactions(account.name)} disabled={loading}>
                   Get {account.name} Transactions
+                </button>
+
+                <button onClick={() => getDataBaseTransactions(account.name)} disabled={loading}>
+                  Get Database {account.name} Transactions
                 </button>
               </div>
             )
