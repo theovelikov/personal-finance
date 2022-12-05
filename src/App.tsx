@@ -16,14 +16,14 @@ function App() {
   const [bankAccounts, setBankAccounts] = useState([]);
 
   const createLinkToken = useCallback(async () => {
-    const response = await fetch("/api/create_link_token", {});
+    const response = await fetch("/plaid/create_link_token", {});
     const data = await response.json();
     setLinkToken(data.link_token);
   }, [setLinkToken])
 
   const getBalance = useCallback(async (accountName: string) => {
     setLoading(true);
-    const response = await fetch(`/api/balance?accountName=${accountName}`, {});
+    const response = await fetch(`/plaid/balance?accountName=${accountName}`, {});
     const data = await response.json();
     setData(data.balance);
     setLoading(false);
@@ -31,7 +31,7 @@ function App() {
 
   const getTransactions = useCallback(async (accountName: string) => {
     setLoading(true);
-    const response = await fetch(`/api/transactions?accountName=${accountName}`, {});
+    const response = await fetch(`/plaid/transactions?accountName=${accountName}`, {});
     const data = await response.json();
     console.log(data)
     setTransactions(data.transactions);
@@ -40,7 +40,7 @@ function App() {
 
   const getDataBaseTransactions = useCallback(async (accountName: string) => {
     setLoading(true);
-    const response = await fetch(`/api/db/transactions?accountName=${accountName}`, {});
+    const response = await fetch(`/db/transactions?accountName=${accountName}`, {});
     const transactions = await response.json();
     setTxns(transactions);
     setLoading(false);
@@ -48,14 +48,14 @@ function App() {
 
   const getBankAccounts = useCallback(async () => {
     setLoading(true);
-    const response = await fetch("/api/db/bank_accounts", {});
+    const response = await fetch("/db/bank_accounts", {});
     const data = await response.json();
     setBankAccounts(data);
     setLoading(false);
   }, [setBankAccounts]);
 
   const exchangePublicToken = useCallback(async (public_token: string, metadata: any) => {
-    await fetch("/api/exchange_public_token", {
+    await fetch("/plaid/exchange_public_token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

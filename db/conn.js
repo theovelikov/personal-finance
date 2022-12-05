@@ -11,7 +11,7 @@ let dbConnection;
 
 module.exports = {
   connectToServer: (callback) => {
-    client.connect( (err, db) => {
+    client.connect((err, db) => {
       if (err || !db) {
         return callback(err);
       }
