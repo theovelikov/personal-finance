@@ -11,6 +11,7 @@ function App() {
   const [linkToken, setLinkToken] = useState('');
   const [data, setData] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [txns, setTxns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [bankAccounts, setBankAccounts] = useState([]);
 
@@ -37,9 +38,17 @@ function App() {
     setLoading(false);
   }, [setTransactions])
 
+  const getDataBaseTransactions = useCallback(async (accountName: string) => {
+    setLoading(true);
+    const response = await fetch(`/api/db/transactions?accountName=${accountName}`, {});
+    const transactions = await response.json();
+    setTxns(transactions);
+    setLoading(false);
+  }, [setTxns])
+
   const getBankAccounts = useCallback(async () => {
     setLoading(true);
-    const response = await fetch("/api/bank_accounts", {});
+    const response = await fetch("/api/db/bank_accounts", {});
     const data = await response.json();
     setBankAccounts(data);
     setLoading(false);
@@ -95,26 +104,36 @@ function App() {
                 <button onClick={() => getTransactions(account.name)} disabled={loading}>
                   Get {account.name} Transactions
                 </button>
+
+                <button onClick={() => getDataBaseTransactions(account.name)} disabled={loading}>
+                  Get Database {account.name} Transactions
+                </button>
               </div>
             )
           })}  
         </div>
 
         <div className="container">
-        { data != null &&
-          Object.entries(data).map((entry, i) => (
-            <div key={i}>
-              <code>{JSON.stringify(entry[1], null, 2)}</code>
-            </div>
-          )
-        )}
-        { transactions != null &&
-          Object.entries(transactions).map((transaction, i) => (
-            <div key={i}>
-              <code>{JSON.stringify(transaction)}</code>
-            </div>
-          )
-        )}
+          { data != null &&
+            Object.entries(data).map((entry, i) => (
+              <div key={i}>
+                <code>{JSON.stringify(entry[1], null, 2)}</code>
+              </div>
+            )
+          )}
+          { Object.entries(transactions).map((transaction, i) => (
+              <div key={i}>
+                <code>{JSON.stringify(transaction)}</code>
+              </div>
+            )
+          )}
+          { txns.length > 0 &&
+            txns.map((txn, i) => (
+              <div key={i}>
+                <code>{JSON.stringify(txn)}</code>
+              </div>
+            )
+          )}
         </div>
       </div>
     </div>

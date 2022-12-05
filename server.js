@@ -63,47 +63,63 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
   res.json(true);
 });
 
-app.get("/api/bank_accounts", async (req, res, next) => {
+app.get("/api/db/bank_accounts", async (req, res, next) => {
   const pfDb = await dbClient.connect()
   const banks = pfDb.db("personal-finance").collection("banks").find();
   const bankAccounts = [];
   await banks.forEach((bank) => {
-    console.log('bank', bank);
     bankAccounts.push(bank);
   });
   res.json(bankAccounts);
 });
 
+app.get("/api/db/transactions", async (req, res, next) => {
+  const pfDb = await dbClient.connect()
+  const txns = pfDb.db("personal-finance").collection('txns').find();
+  const transactions = [];
+  await txns.forEach((txn) => {
+    transactions.push(txn);
+  });
+  res.json(transactions);
+});
+
 app.get("/api/balance", async (req, res, next) => {
-  const bankAccount = await banksDb.doc(req.query.accountName).get()
-  const access_token = bankAccount.data().access_token;
-  const bankName = bankAccount.id;
+  const pfDb = await dbClient.connect()
+  const banks = pfDb.db("personal-finance").collection("banks");
+  const bankAccount = await banks.findOne({ name: req.query.accountName })
+  const access_token = bankAccount.access_token;
 
   const balanceResponse = await client.accountsBalanceGet({ access_token });
-  const accounts = banksDb.doc(bankName).collection('accounts');
-  console.log(balanceResponse.data.accounts);
-  balanceResponse.data.accounts.forEach(account => (
-    accounts.doc(account.account_id).set({
+  const accountData = balanceResponse.data.accounts.map((account) => {
+    return {
+      id: account.account_id,
+      name: account.name,
       balance: account.balances.current,
-      account_name: account.name,
-      subtype: account.subtype,
-    })
-  ));
+      subtype: account.subtype
+    };
+  });
+
+  await banks.updateOne(
+    { name: req.query.accountName },
+    { $set: { accounts: accountData } }
+  );
   
   res.json({
-    balance: balanceResponse.data,
+    balance: accountData,
   });
 });
 
 app.get("/api/transactions", async (req, res, next)  => {
-  const bankAccount = await banksDb.doc(req.query.accountName).get();
-  const accessToken = bankAccount.data().access_token;
-  const bankName = bankAccount.id;
-  const startDate = bankAccount.data().txns_up_to_date || '2022-09-01'
+  const pfDb = await dbClient.connect()
+  const banks = pfDb.db("personal-finance").collection("banks");
+  const bankName = req.query.accountName;
+  const bankAccount = await banks.findOne({ name: bankName })
+  const access_token = bankAccount.access_token;
+  const startDate = bankAccount.txns_up_to_date || '2022-09-01'
   const endDate = new Date().toISOString().slice(0, 10);
   try {
     const response = await client.transactionsGet({
-      access_token: accessToken,
+      access_token,
       start_date: startDate,
       end_date: endDate
     });
@@ -111,7 +127,7 @@ app.get("/api/transactions", async (req, res, next)  => {
     const total_transactions = response.data.total_transactions;
     while (transactions.length < total_transactions) {
       const paginatedResponse = await client.transactionsGet({
-        access_token: accessToken,
+        access_token,
         start_date: startDate,
         end_date: endDate,
         options: {
@@ -122,20 +138,21 @@ app.get("/api/transactions", async (req, res, next)  => {
         paginatedResponse.data.transactions,
       );
     }
-    const accounts = banksDb.doc(bankName).collection('accounts');
-    transactions.forEach(transaction => {
-      accounts.doc(transaction.account_id).collection('txns')
-      .doc().set({
+    const txns = pfDb.db("personal-finance").collection('txns');
+    transactions = transactions.map((transaction) => { 
+      return {
+        account_id: transaction.account_id,
         date: transaction.date,
         amount: transaction.amount,
         name: transaction.merchant_name || transaction.name,
         category: transaction.category,
         payment_channel: transaction.payment_channel,
-      });
+      }
     });
-    await banksDb.doc(bankName).set({
-      txns_up_to_date: endDate
-    }, { merge: true });
+
+    await txns.insertMany(transactions);
+    await banks.updateOne({name: bankName}, { $set: { txns_up_to_date: endDate }})
+
     res.json({transactions});
   } catch(err) {
     console.log(err)
