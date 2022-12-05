@@ -9,16 +9,11 @@ const session = require("express-session");
 const { Configuration, PlaidApi, PlaidEnvironments } = require("plaid");
 const app = express();
 
-const { getFirestore } = require('firebase-admin/firestore');
-const admin = require("firebase-admin");
-const serviceAccount = require("./personal-finance-348e9-firebase-adminsdk-doi01-7421efa714.json");
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-const db = getFirestore();
-const banksDb = db.collection('banks');
+const username = encodeURIComponent(process.env.MONGO_USERNAME);
+const password = encodeURIComponent(process.env.MONGO_PASSWORD);
+const { MongoClient } = require('mongodb');
+const uri = `mongodb+srv://${username}:${password}@cluster0.0ogzbz4.mongodb.net/?retryWrites=true&w=majority`;
+const dbClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
 
 app.use(
@@ -57,8 +52,10 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
   const exchangeResponse = await client.itemPublicTokenExchange({
     public_token: req.body.public_token,
   });
-  const bankName = req.body.metadata.institution.name;
-  await banksDb.doc(bankName).set({
+  const pfDb = await dbClient.connect()
+  const banks = pfDb.db("personal-finance").collection("banks");
+  await banks.insertOne({
+    name: req.body.metadata.institution.name,
     access_token: exchangeResponse.data.access_token,
     item_id: exchangeResponse.data.item_id,
   });
@@ -67,12 +64,12 @@ app.post("/api/exchange_public_token", async (req, res, next) => {
 });
 
 app.get("/api/bank_accounts", async (req, res, next) => {
-  const banks = await banksDb.get();
+  const pfDb = await dbClient.connect()
+  const banks = pfDb.db("personal-finance").collection("banks").find();
   const bankAccounts = [];
-  banks.forEach((bank) => {
-    let data = bank.data();
-    data.name = bank.id;
-    bankAccounts.push(data);
+  await banks.forEach((bank) => {
+    console.log('bank', bank);
+    bankAccounts.push(bank);
   });
   res.json(bankAccounts);
 });

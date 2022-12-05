@@ -5,7 +5,7 @@ import {
   PlaidLinkOptions,
   PlaidLinkOnSuccess,
 } from 'react-plaid-link';
-import { get } from './request.js';
+import Chart from 'chart.js/auto';
 
 function App() {
   const [linkToken, setLinkToken] = useState('');
@@ -68,7 +68,9 @@ function App() {
     if(linkToken === ''){
       createLinkToken()
     }
-  })
+    getBankAccounts();
+    console.log('execute');
+  }, [setBankAccounts, setLinkToken])
 
   return (
     <div className="app">
