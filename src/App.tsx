@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import './styles/App.css';
+import './App.css';
 import {
   usePlaidLink,
   PlaidLinkOptions,
   PlaidLinkOnSuccess,
 } from 'react-plaid-link';
-import Chart from 'chart.js/auto';
+import PieChart from './components/PieChart';
 
 function App() {
   const [linkToken, setLinkToken] = useState('');
@@ -38,11 +38,13 @@ function App() {
     setLoading(false);
   }, [setTransactions])
 
-  const getDataBaseTransactions = useCallback(async (accountName: string) => {
+  const getDataBaseTransactions = useCallback(async () => {
     setLoading(true);
-    const response = await fetch(`/db/transactions?accountName=${accountName}`, {});
+    console.log('theo')
+    const response = await fetch("/db/transactions", {});
     const transactions = await response.json();
     setTxns(transactions);
+    console.log(transactions)
     setLoading(false);
   }, [setTxns])
 
@@ -78,8 +80,9 @@ function App() {
       createLinkToken()
     }
     getBankAccounts();
+    getDataBaseTransactions()
     console.log('execute');
-  }, [setBankAccounts, setLinkToken])
+  }, [setBankAccounts, setLinkToken, setTxns])
 
   return (
     <div className="app">
@@ -104,13 +107,19 @@ function App() {
                 <button onClick={() => getTransactions(account.name)} disabled={loading}>
                   Get {account.name} Transactions
                 </button>
-
-                <button onClick={() => getDataBaseTransactions(account.name)} disabled={loading}>
-                  Get Database {account.name} Transactions
-                </button>
               </div>
             )
           })}  
+        </div>
+
+        <div className='container'>
+          <button onClick={() => getDataBaseTransactions()} disabled={loading}>
+              Get Database Transactions
+          </button>
+        </div>
+
+        <div className='pie-chart'>
+          <PieChart data={txns} />
         </div>
 
         <div className="container">
