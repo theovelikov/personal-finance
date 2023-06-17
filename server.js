@@ -25,8 +25,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 
-const dbRoutes = require('./routes/database');
-const plaidRoutes = require("./routes/plaid");
+const dbRoutes = require('./api/database');
+const plaidRoutes = require("./api/plaid");
 
 app.use("/db", dbRoutes);
 app.use("/plaid", plaidRoutes);
